@@ -33,8 +33,14 @@ def start_client():
     
     # Step 4: Receive server response
     response = ssl_sock.recv(1024)
-    print(f"Sending message: {message}")
-    print(f"Server response: {response.decode('utf-8')}")
+    print(f"Client sent message: {message}")
+    
+    if b"Message integrity confirmed." in response:
+        print("Server confirmed message integrity.")
+    elif b"HMAC validation failed." in response:
+        print("Server detected tampered message or incorrect HMAC.")
+    else:
+        print(f"Received unexpected server response: {response.decode('utf-8')}")
 
     ssl_sock.shutdown()
     ssl_sock.close()

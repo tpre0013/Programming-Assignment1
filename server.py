@@ -27,14 +27,17 @@ def handle_client(ssl_sock):
         # Step 3: Calculate HMAC
         calculated_hmac = hmac.new(PSK_KEY, message, sha256).digest()
         print(f"Received message: {message.decode('utf-8')}")
-    
+
         # Step 4: Validate the HMAC
         if hmac.compare_digest(received_hmac, calculated_hmac):
-            print(f"Received valid message: {message.decode('utf-8')}")
+            print(f"Valid message received: {message.decode('utf-8')}")
             ssl_sock.send(b"Message integrity confirmed.")
         else:
             print("HMAC validation failed.")
             ssl_sock.send(b"HMAC validation failed.")
+    except Exception as e:
+        print(f"Error occurred while handling client: {e}")
+        ssl_sock.send(b"Server error: Unable to process the message.")
     finally:
         ssl_sock.shutdown()
         ssl_sock.close()
