@@ -33,6 +33,7 @@ def start_client():
     
     # Step 4: Receive server response
     response = ssl_sock.recv(1024)
+    print(f"Sending message: {message}")
     print(f"Server response: {response.decode('utf-8')}")
 
     ssl_sock.shutdown()

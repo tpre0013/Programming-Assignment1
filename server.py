@@ -26,7 +26,8 @@ def handle_client(ssl_sock):
         
         # Step 3: Calculate HMAC
         calculated_hmac = hmac.new(PSK_KEY, message, sha256).digest()
-        
+        print(f"Received message: {message.decode('utf-8')}")
+    
         # Step 4: Validate the HMAC
         if hmac.compare_digest(received_hmac, calculated_hmac):
             print(f"Received valid message: {message.decode('utf-8')}")
