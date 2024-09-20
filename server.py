@@ -1,45 +1,57 @@
 from OpenSSL import SSL
+import socket
 import hmac
 from hashlib import sha256
-import socket
 
+# HMAC Key
 PSK_KEY = b"my_shared_key"
 
-# Setting up OpenSSL context
+# Paths to your certificate and private key
+CERT_FILE = 'server.crt'
+KEY_FILE = 'server.key'
+
+# Set up the SSL context
 context = SSL.Context(SSL.TLSv1_2_METHOD)
-context.use_psk_identity_hint(b"iot_device")
+context.use_certificate_file(CERT_FILE)
+context.use_privatekey_file(KEY_FILE)
 
-def handle_client(client_socket):
+# Create a secure socket for the server
+def handle_client(ssl_sock):
     try:
-        # Receive message
-        message = client_socket.recv(1024)
-
-        # Receive HMAC
-        received_hmac = client_socket.recv(64)
-
-        # Calculate HMAC
+        # Step 1: Receive message
+        message = ssl_sock.recv(1024)
+        
+        # Step 2: Receive HMAC
+        received_hmac = ssl_sock.recv(64)
+        
+        # Step 3: Calculate HMAC
         calculated_hmac = hmac.new(PSK_KEY, message, sha256).digest()
-
-        # Compare received HMAC with calculated HMAC
+        
+        # Step 4: Validate the HMAC
         if hmac.compare_digest(received_hmac, calculated_hmac):
             print(f"Received valid message: {message.decode('utf-8')}")
-            client_socket.send(b"Message integrity confirmed.")
+            ssl_sock.send(b"Message integrity confirmed.")
         else:
             print("HMAC validation failed.")
-            client_socket.send(b"HMAC validation failed.")
+            ssl_sock.send(b"HMAC validation failed.")
     finally:
-        client_socket.close()
+        ssl_sock.shutdown()
+        ssl_sock.close()
 
 def start_server():
-    # Setting up socket
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
-        server_socket.bind(('', 4433))
-        server_socket.listen(5)
-        print("Server listening...")
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(('', 4433))
+    sock.listen(5)
+    print("Server listening on port 4433...")
 
-        while True:
-            client_socket, addr = server_socket.accept()
-            handle_client(client_socket)
+    while True:
+        client_socket, addr = sock.accept()
+        print(f"Connection from {addr}")
+        ssl_sock = SSL.Connection(context, client_socket)
+        ssl_sock.set_accept_state()
+        ssl_sock.do_handshake()  # Perform SSL handshake
+
+        handle_client(ssl_sock)
 
 if __name__ == "__main__":
     start_server()
