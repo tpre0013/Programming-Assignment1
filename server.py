@@ -1,27 +1,26 @@
+from OpenSSL import SSL
 import hmac
 from hashlib import sha256
-from mbedtls import tls, PSK
-from mbedtls.tls import ServerContext, TLSConfiguration
+import socket
 
-PSK_IDENTITY = b"iot_device"
 PSK_KEY = b"my_shared_key"
 
-# Create server configuration
-config = TLSConfiguration(pre_shared_key=(PSK_IDENTITY, PSK_KEY))
-server_context = ServerContext(config)
+# Setting up OpenSSL context
+context = SSL.Context(SSL.TLSv1_2_METHOD)
+context.use_psk_identity_hint(b"iot_device")
 
 def handle_client(client_socket):
     try:
-        # Step 1: Receive message
+        # Receive message
         message = client_socket.recv(1024)
-        
-        # Step 2: Receive HMAC (Assuming it's sent as a separate message)
-        received_hmac = client_socket.recv(64)  # 64 bytes HMAC (SHA-256 output size)
 
-        # Step 3: Calculate HMAC on the server side
+        # Receive HMAC
+        received_hmac = client_socket.recv(64)
+
+        # Calculate HMAC
         calculated_hmac = hmac.new(PSK_KEY, message, sha256).digest()
 
-        # Step 4: Compare received HMAC with calculated HMAC
+        # Compare received HMAC with calculated HMAC
         if hmac.compare_digest(received_hmac, calculated_hmac):
             print(f"Received valid message: {message.decode('utf-8')}")
             client_socket.send(b"Message integrity confirmed.")
@@ -32,12 +31,15 @@ def handle_client(client_socket):
         client_socket.close()
 
 def start_server():
-    with server_context.wrap_socket(('', 4433), server_side=True) as sock:
+    # Setting up socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
+        server_socket.bind(('', 4433))
+        server_socket.listen(5)
         print("Server listening...")
+
         while True:
-            client, addr = sock.accept()
-            handle_client(client)
+            client_socket, addr = server_socket.accept()
+            handle_client(client_socket)
 
 if __name__ == "__main__":
     start_server()
-
